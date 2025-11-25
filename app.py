@@ -267,8 +267,8 @@ def gerar_pdf_protocolo(coleta, observacao: str) -> Optional[bytes]:
     if logo_bytes:
         try:
             img = ImageReader(io.BytesIO(logo_bytes))
-            c.drawImage(img, 40, height - 90, width=140, preserveAspectRatio=True, mask="auto")
-            y = height - 110
+            c.drawImage(img, 40, height - 80, width=90, preserveAspectRatio=True, mask="auto")
+            y = height - 95
         except Exception:
             y = height - 40
 
@@ -743,7 +743,7 @@ def main():
     get_engine()
     logo = carregar_logo()
     if logo:
-        st.image(logo, width=140)
+        st.image(logo, width=90)
     st.title("Controle de Coletas")
 
     pagina = st.sidebar.radio("Navegacao", ("Coletas", "Concluidas", "Nova Coleta", "Motoristas"))
