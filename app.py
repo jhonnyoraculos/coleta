@@ -425,7 +425,7 @@ def exibir_coletas():
     motoristas_options = ["Todos"] + [f"{m.nome} (#{m.id})" for m in motoristas_todos]
 
     col1, col2, col3, col4 = st.columns(4)
-    filtro_status = col1.selectbox("Status", list(status_map.keys()))
+    filtro_status = col1.selectbox("Status", list(status_map.keys()), index=1)  # padrão: Pendentes
     filtro_motorista_txt = col2.selectbox("Motorista", motoristas_options)
     usar_prazo = col3.checkbox("Filtrar por prazo")
     prazo_inicio = None
