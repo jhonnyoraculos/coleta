@@ -416,7 +416,6 @@ def exibir_coletas():
     status_map = {
         "Todas": None,
         "Pendentes": "PENDENTE",
-        "Em rota": "EM ROTA",
         "Concluídas": "CONCLUIDA",
         "Canceladas": "CANCELADA",
     }
