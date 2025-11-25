@@ -703,21 +703,26 @@ Colaborador: ____________________________    Data: __________________
                 mime="application/pdf",
             )
             b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-            pdf_data_url = f"data:application/pdf;base64,{b64_pdf}"
             if st.button("Imprimir protocolo agora"):
                 components.html(
                     f"""
-                    <iframe id="printFrame" src="{pdf_data_url}" style="width:0;height:0;border:0;"></iframe>
                     <script>
-                    const f = document.getElementById('printFrame');
-                    f.onload = () => {{
-                        try {{
-                            f.contentWindow.focus();
-                            f.contentWindow.print();
-                        }} catch (e) {{
-                            alert("Não foi possível abrir o PDF para impressão. Tente baixar o PDF e imprimir manualmente.");
+                    (function() {{
+                        const b64 = "{b64_pdf}";
+                        const byteChars = atob(b64);
+                        const byteNumbers = new Array(byteChars.length);
+                        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], {{type: 'application/pdf'}});
+                        const url = URL.createObjectURL(blob);
+                        const w = window.open(url, '_blank');
+                        if (w) {{
+                            w.onload = () => w.print();
+                            setTimeout(() => w.print(), 700);
+                        }} else {{
+                            alert("Habilite pop-ups para imprimir.");
                         }}
-                    }};
+                    }})();
                     </script>
                     """,
                     height=0,
