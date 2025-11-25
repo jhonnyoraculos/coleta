@@ -240,6 +240,15 @@ def atualizar_coleta(coleta_id, campos, novo_status=None, foto=None):
         return True, "Coleta atualizada com sucesso."
 
 
+def remover_coleta(coleta_id):
+    with get_session() as session:
+        coleta = session.query(Coleta).get(coleta_id)
+        if not coleta:
+            return False, "Coleta não encontrada."
+        session.delete(coleta)
+        return True, "Coleta excluída com sucesso."
+
+
 def gerar_pdf_protocolo(coleta, observacao: str) -> Optional[bytes]:
     """Cria um PDF simples do protocolo, pronto para impressão e assinatura manual."""
     if not HAS_REPORTLAB:
@@ -512,7 +521,7 @@ def exibir_detalhe_coleta(coleta):
         st.image(
             io.BytesIO(coleta.comprovante_foto),
             caption=coleta.comprovante_foto_nome or "Comprovante",
-            use_column_width=True,
+            width=500,
         )
 
     st.markdown("---")
@@ -583,6 +592,23 @@ def exibir_detalhe_coleta(coleta):
                 st.rerun()
             else:
                 st.error(mensagem)
+
+    st.markdown("---")
+    st.subheader("Excluir coleta")
+    col_del1, col_del2 = st.columns([3, 1])
+    with col_del1:
+        confirmar = st.checkbox("Confirmo que desejo excluir esta coleta (ação irreversível)", key=f"conf_{coleta.id}")
+    with col_del2:
+        if st.button("Excluir", key=f"del_{coleta.id}"):
+            if not confirmar:
+                st.error("Marque a confirmação para excluir.")
+            else:
+                ok, msg = remover_coleta(coleta.id)
+                if ok:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
 
 
 def exibir_concluidas():
