@@ -702,26 +702,31 @@ Colaborador: ____________________________    Data: __________________
                 file_name=f"protocolo_coleta_{coleta.id}.pdf",
                 mime="application/pdf",
             )
-            b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+            b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8").replace("\n", "")
             if st.button("Imprimir protocolo agora"):
                 components.html(
                     f"""
                     <script>
                     (function() {{
                         const b64 = "{b64_pdf}";
-                        const byteChars = atob(b64);
-                        const byteNumbers = new Array(byteChars.length);
-                        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
-                        const byteArray = new Uint8Array(byteNumbers);
-                        const blob = new Blob([byteArray], {{type: 'application/pdf'}});
-                        const url = URL.createObjectURL(blob);
-                        const w = window.open(url, '_blank');
-                        if (w) {{
-                            w.onload = () => w.print();
-                            setTimeout(() => w.print(), 700);
-                        }} else {{
-                            alert("Habilite pop-ups para imprimir.");
-                        }}
+                        const src = "data:application/pdf;base64," + b64;
+                        const iframe = document.createElement('iframe');
+                        iframe.style.position = 'fixed';
+                        iframe.style.right = '0';
+                        iframe.style.bottom = '0';
+                        iframe.style.width = '0';
+                        iframe.style.height = '0';
+                        iframe.style.border = '0';
+                        iframe.src = src;
+                        document.body.appendChild(iframe);
+                        iframe.onload = () => {{
+                            try {{
+                                iframe.contentWindow.focus();
+                                iframe.contentWindow.print();
+                            }} catch (e) {{
+                                alert("Nao foi possivel abrir o PDF. Baixe o arquivo e imprima manualmente.");
+                            }}
+                        }};
                     }})();
                     </script>
                     """,
