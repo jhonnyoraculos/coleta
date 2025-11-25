@@ -658,15 +658,8 @@ def exibir_concluidas():
 
     st.markdown("---")
     st.subheader("Protocolo para impressao")
-    with st.form(f"protocolo_{coleta.id}"):
-        observacao_extra = st.text_area(
-            "Observacao adicional (opcional, sera impressa no protocolo)",
-            value="Conferir carga; assinatura manual do gestor da frota e motorista.",
-            max_chars=500,
-        )
-        submit = st.form_submit_button("Gerar protocolo")
-
-    if submit:
+    observacao_extra = "Conferir carga; assinatura manual do gestor da frota e motorista."
+    if st.button("Gerar protocolo"):
         # Assinaturas sempre manuais: nao inserimos nomes
         protocolo = f"""
 PROTOCOLO DE ENTREGA - COLETA #{coleta.id}
