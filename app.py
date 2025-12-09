@@ -435,8 +435,12 @@ def gerar_pdf_protocolo(coleta, observacao: str) -> Optional[bytes]:
     if logo_bytes:
         try:
             img = ImageReader(io.BytesIO(logo_bytes))
-            c.drawImage(img, 40, height - 80, width=90, preserveAspectRatio=True, mask="auto")
-            y = height - 95
+            img_w, img_h = img.getSize()
+            target_w = 120
+            target_h = target_w * (img_h / img_w)
+            x_pos = (width - target_w) / 2
+            c.drawImage(img, x_pos, height - target_h - 20, width=target_w, height=target_h, preserveAspectRatio=True, mask="auto")
+            y = height - target_h - 35
         except Exception:
             y = height - 40
 
