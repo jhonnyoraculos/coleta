@@ -848,7 +848,99 @@ def exibir_coletas():
         "Canceladas": "CANCELADA",
     }
 
+    motoristas_todos = listar_motoristas(ativos_apenas=False)
+    motoristas_options = ["Todos"] + [f"{m.nome} (#{m.id})" for m in motoristas_todos]
 
+    col1, col2 = st.columns(2)
+    filtro_status = col1.selectbox("Status", list(status_map.keys()), index=1)  # padrao: Pendentes
+    filtro_motorista_txt = col2.selectbox("Motorista", motoristas_options)
+
+    col_cb, col_pi, col_pf = st.columns([1, 1, 1])
+    usar_prazo = col_cb.checkbox("Filtrar por prazo")
+    prazo_inicio = prazo_fim = None
+    if usar_prazo:
+        prazo_inicio = col_pi.date_input("Prazo inicial", value=datetime.date.today())
+        prazo_fim = col_pf.date_input("Prazo final", value=datetime.date.today())
+
+    motorista_id = None
+    if filtro_motorista_txt != "Todos":
+        motorista_id = int(filtro_motorista_txt.split("#")[-1].strip(")"))
+
+    coletas = listar_coletas(
+        status=status_map[filtro_status],
+        motorista_id=motorista_id,
+        prazo_inicio=prazo_inicio,
+        prazo_fim=prazo_fim,
+    )
+
+    termo_busca = st.text_input("Buscar (cliente / material / local)", "")
+    if termo_busca:
+        termo = termo_busca.lower().strip()
+        coletas = [
+            c
+            for c in coletas
+            if termo in (c.cliente or "").lower()
+            or termo in (c.observacoes or "").lower()
+            or termo in (c.local_coleta or "").lower()
+            or termo in (c.local_entrega or "").lower()
+        ]
+
+    if coletas:
+        st.subheader("Lista filtrada")
+        dados = []
+        for c in coletas:
+            dados.append(
+                {
+                    "ID": c.id,
+                    "Cliente": c.cliente,
+                    "Motorista": c.motorista.nome if c.motorista else "-",
+                    "Prazo": c.prazo.strftime("%d/%m/%Y"),
+                    "Valor": float(c.valor) if c.valor is not None else None,
+                    "Status": c.status,
+                    "Indicador": _format_indicador(c),
+                }
+            )
+
+        try:
+            import pandas as pd
+
+            df = pd.DataFrame(dados)
+
+            def highlight_row(row):
+                indicador = row["Indicador"]
+                if indicador == "ATRASADA":
+                    return ["background-color: #ffcccc"] * len(row)
+                if indicador == "PRAZO HOJE":
+                    return ["background-color: #fff3cd"] * len(row)
+                if row["Status"] == "CONCLUIDA":
+                    return ["color: gray"] * len(row)
+                return [""] * len(row)
+
+            st.dataframe(df.style.apply(highlight_row, axis=1), use_container_width=True)
+        except ImportError:
+            st.table(dados)
+
+        try:
+            import pandas as pd
+
+            csv = pd.DataFrame(dados).to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "Baixar resultado (CSV)",
+                data=csv,
+                file_name="coletas_filtradas.csv",
+                mime="text/csv",
+            )
+        except Exception:
+            pass
+
+        opcoes = [f"{c.id} - {c.cliente}" for c in coletas]
+        escolha = st.selectbox("Selecione uma coleta para ver detalhes", options=opcoes)
+        coleta_id = int(escolha.split(" - ")[0])
+        coleta = next((c for c in coletas if c.id == coleta_id), None)
+        if coleta:
+            exibir_detalhe_coleta(coleta)
+    else:
+        st.info("Nenhuma coleta encontrada com os filtros selecionados.")
 def tamanho_concluidas_bytes():
     """Retorna tamanho aproximado em bytes das coletas concluidas (comprovantes + pequeno overhead)."""
     total = 0
