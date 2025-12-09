@@ -8,6 +8,10 @@ from decimal import Decimal
 from typing import Optional
 import zipfile
 import mimetypes
+import os
+import hashlib
+import hmac
+import secrets
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -160,6 +164,15 @@ class ColetaExcluida(Base):
     deletado_em = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class Usuario(Base):
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False)
+    senha_hash = Column(String, nullable=False)
+    ativo = Column(Boolean, nullable=False, server_default="true", default=True)
+
+
 def gerar_zip_concluidas():
     """Cria um zip com PDF, comprovantes e resumo TXT de cada coleta concluida."""
     if not HAS_REPORTLAB:
@@ -275,6 +288,52 @@ def caminhao_em_uso(placa):
         return False
     with get_session() as session:
         return session.query(Coleta.id).filter(Coleta.placa_veiculo == placa).first() is not None
+
+
+# ------------------ Auth helpers ------------------ #
+def _hash_senha(senha: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", senha.encode("utf-8"), salt, 120000)
+    return salt.hex() + ":" + dk.hex()
+
+
+def _verificar_senha(senha: str, senha_hash: str) -> bool:
+    try:
+        salt_hex, hash_hex = senha_hash.split(":")
+        salt = bytes.fromhex(salt_hex)
+        esperado = bytes.fromhex(hash_hex)
+        calculado = hashlib.pbkdf2_hmac("sha256", senha.encode("utf-8"), salt, 120000)
+        return hmac.compare_digest(calculado, esperado)
+    except Exception:
+        return False
+
+
+def criar_usuario(username: str, senha: str):
+    with get_session() as session:
+        if session.query(Usuario).filter(Usuario.username == username).first():
+            return False, "Usuario ja existe."
+        u = Usuario(username=username.strip().lower(), senha_hash=_hash_senha(senha), ativo=True)
+        session.add(u)
+    return True, "Usuario criado."
+
+
+def autenticar(username: str, senha: str):
+    with get_session() as session:
+        u = session.query(Usuario).filter(Usuario.username == username.strip().lower(), Usuario.ativo.is_(True)).first()
+        if not u:
+            return False
+        return _verificar_senha(senha, u.senha_hash)
+
+
+def garantir_admin_padrao():
+    """Cria admin padrao se nao existir usuario algum."""
+    with get_session() as session:
+        existe = session.query(Usuario).first()
+        if existe:
+            return
+    admin_user = os.getenv("ADMIN_USER", "admin")
+    admin_pass = os.getenv("ADMIN_PASSWORD", "admin")
+    criar_usuario(admin_user, admin_pass)
 
 
 # ------------------ CRUD Caminhoes ------------------ #
@@ -1467,6 +1526,29 @@ Observacao adicional: {observacao_extra or '-'}
 
 def main():
     get_engine()
+    garantir_admin_padrao()
+    if "usuario" not in st.session_state:
+        st.session_state["usuario"] = None
+    if st.session_state["usuario"] is None:
+        st.title("Login")
+        with st.form("form_login"):
+            usr = st.text_input("Usuario")
+            pwd = st.text_input("Senha", type="password")
+            entrar = st.form_submit_button("Entrar")
+            if entrar:
+                if autenticar(usr, pwd):
+                    st.session_state["usuario"] = usr.strip().lower()
+                    st.success("Login realizado.")
+                    st.rerun()
+                else:
+                    st.error("Usuario ou senha invalidos.")
+        st.stop()
+
+    st.sidebar.write(f"Logado como: {st.session_state['usuario']}")
+    if st.sidebar.button("Logout"):
+        st.session_state["usuario"] = None
+        st.rerun()
+
     logo = carregar_logo()
     if logo:
         st.image(logo, width=90)
